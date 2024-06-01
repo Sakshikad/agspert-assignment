@@ -65,7 +65,7 @@ const SaleOrderForm = ({ isOpen, onClose, existingOrder }) => {
     }
     onClose();
   };
-
+  console.log(products);
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="3xl">
       <ModalOverlay />
