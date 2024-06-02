@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-
 import {
   Modal,
   ModalOverlay,
@@ -39,11 +38,15 @@ const SaleOrderForm = ({ isOpen, onClose, existingOrder }) => {
 
   useEffect(() => {
     if (existingOrder) {
-      setValue("invoice_number", existingOrder.invoice_no);
-      setValue("invoice_date", existingOrder.invoice_date);
-      setValue("paid", existingOrder.paid);
-      setSelectedCustomer(existingOrder.customer_id);
-      setSelectedProducts(existingOrder.items.map((item) => item.sku_id));
+      setValue("invoice_number", existingOrder.invoice_no || "");
+      setValue("invoice_date", existingOrder.invoice_date || "");
+      setValue("paid", existingOrder.paid || false);
+      setSelectedCustomer(existingOrder.customer_id || "");
+      setSelectedProducts(
+        existingOrder.items
+          ? existingOrder.items.map((item) => item.sku_id)
+          : []
+      );
     } else {
       setValue("invoice_number", "");
       setValue("invoice_date", "");
@@ -53,17 +56,7 @@ const SaleOrderForm = ({ isOpen, onClose, existingOrder }) => {
     }
   }, [existingOrder, setValue]);
 
-  const onSubmit = (data) => {
-    if (existingOrder) {
-      dispatch(updateOrder({ ...data, items: selectedProducts }));
-    } else {
-      dispatch(addOrder({ ...data, items: selectedProducts }));
-    }
-    // updateLocalOrders();
-    onClose();
-  };
-
-  const updateLocalOrders = () => {
+  const updateLocalOrders = (data) => {
     const orders = JSON.parse(localStorage.getItem("orders")) || [];
     const updatedOrders = existingOrder
       ? orders.map((order) =>
@@ -71,13 +64,64 @@ const SaleOrderForm = ({ isOpen, onClose, existingOrder }) => {
             ? { ...order, ...data }
             : order
         )
-      : [...orders, { ...data, items: selectedProducts }];
+      : [...orders, data];
     localStorage.setItem("orders", JSON.stringify(updatedOrders));
   };
+
+  const onSubmit = (data) => {
+    console.log("submit");
+    const orderData = {
+      ...data,
+      customer_id: selectedCustomer,
+      items: selectedProducts,
+    };
+    if (existingOrder) {
+      dispatch(updateOrder({ ...orderData, id: existingOrder.id }));
+    } else {
+      dispatch(addOrder(orderData));
+    }
+    updateLocalOrders(orderData);
+    console.log("data", data);
+    console.log("orderData", orderData);
+    onClose();
+  };
+  console.log(selectedProducts, "selectedProducts");
+  // const onSubmit = (data) => {
+  //   const items = selectedProducts
+  //     .map((productId) => {
+  //       const product = products.find((p) => p.id === productId);
+  //       return product.sku.map((sku) => {
+  //         const skuData = productData[productId]?.sku?.[sku.id];
+  //         return {
+  //           sku_id: sku.id,
+  //           price: sku.selling_price,
+  //           quantity: skuData ? skuData.totalItems : 0,
+  //         };
+  //       });
+  //     })
+  //     .flat();
+
+  //   const orderData = {
+  //     ...data,
+  //     customer_id: parseInt(selectedCustomer), // ensure customer_id is a number
+  //     items,
+  //   };
+
+  //   if (existingOrder) {
+  //     dispatch(updateOrder({ ...orderData, id: existingOrder.id }));
+  //   } else {
+  //     dispatch(addOrder(orderData));
+  //   }
+  //   updateLocalOrders(orderData);
+  //   onClose();
+  // };
 
   const updateTotals = (items, price) => {
     setTotalItems(items);
     setTotalPrice(price);
+  };
+  const handleSelectedItems = (selectedItems) => {
+    console.log("Selected items:", selectedItems);
   };
 
   return (
@@ -140,6 +184,7 @@ const SaleOrderForm = ({ isOpen, onClose, existingOrder }) => {
                 selectedProducts={selectedProducts}
                 onChange={setSelectedProducts}
                 updateTotals={updateTotals}
+                onSelectedItemsChange={handleSelectedItems}
               />
             </FormControl>
             <HStack spacing={4} justifyContent="flex-end">
@@ -160,7 +205,13 @@ const SaleOrderForm = ({ isOpen, onClose, existingOrder }) => {
             <Button size="md" colorScheme="red" onClick={onClose} flex="1">
               Discard
             </Button>
-            <Button size="md" colorScheme="green" type="submit" flex="1">
+            <Button
+              size="md"
+              colorScheme="green"
+              type="submit"
+              flex="1"
+              onClick={handleSubmit(onSubmit)}
+            >
               {existingOrder ? "Update Sale Order" : "Create Sale Order"}
             </Button>
           </ButtonGroup>
