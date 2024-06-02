@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import {
-  Input,
   Tag,
   TagCloseButton,
   TagLabel,
@@ -15,10 +14,11 @@ import {
   FormLabel,
   Box,
   Text,
+  Input,
 } from "@chakra-ui/react";
+import { Select } from "chakra-react-select";
 
 const SelectedProductsInput = ({ products, selectedProducts, onChange }) => {
-  const [searchTerm, setSearchTerm] = useState("");
   const { control, setValue, watch } = useForm();
   const [productData, setProductData] = useState({});
 
@@ -65,30 +65,40 @@ const SelectedProductsInput = ({ products, selectedProducts, onChange }) => {
     }));
   };
 
-  const filteredProducts = searchTerm
-    ? products.filter((product) =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : [];
+  const productOptions = products.map((product) => ({
+    label: product.name,
+    value: product.id,
+  }));
+
+  const selectedProductOptions = selectedProducts.map((productId) => {
+    const product = products.find((p) => p.id === productId);
+    return {
+      label: product.name,
+      value: product.id,
+    };
+  });
 
   return (
     <VStack spacing={2} width="100%">
-      <Input
+      <Select
         placeholder="Search Products"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-      />
-      <Box position="absolute" right="0" top="40px" width="100%">
-        {selectedProducts.map((productId) => {
-          const product = products.find((p) => p.id === productId);
-          return (
-            <Tag key={productId} size="md" borderRadius="full" mr={2}>
-              <TagLabel>{product.name}</TagLabel>
-              <TagCloseButton onClick={() => handleRemoveProduct(productId)} />
-            </Tag>
+        value={selectedProductOptions}
+        options={productOptions}
+        onChange={(selectedOptions) => {
+          const updatedSelectedProducts = selectedOptions.map(
+            (option) => option.value
           );
-        })}
-      </Box>
+          onChange(updatedSelectedProducts);
+        }}
+        isMulti
+        closeMenuOnSelect={false}
+        chakraStyles={{
+          container: (provided) => ({
+            ...provided,
+            width: "100%",
+          }),
+        }}
+      />
       <Accordion allowToggle width="100%">
         {selectedProducts.map((productId, index) => {
           const product = products.find((p) => p.id === productId);
@@ -170,17 +180,6 @@ const SelectedProductsInput = ({ products, selectedProducts, onChange }) => {
           );
         })}
       </Accordion>
-      {filteredProducts.map((product) => (
-        <Tag
-          key={product.id}
-          size="md"
-          borderRadius="full"
-          cursor="pointer"
-          onClick={() => onChange([...selectedProducts, product.id])}
-        >
-          <TagLabel>{product.name}</TagLabel>
-        </Tag>
-      ))}
     </VStack>
   );
 };
