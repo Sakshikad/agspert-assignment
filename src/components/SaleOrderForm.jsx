@@ -14,19 +14,13 @@ import {
   Checkbox,
   VStack,
   HStack,
-  Accordion,
-  AccordionItem,
-  AccordionButton,
-  AccordionPanel,
-  AccordionIcon,
   FormControl,
   FormLabel,
   ButtonGroup,
-  Box,
 } from "@chakra-ui/react";
 import { useDispatch, useSelector } from "react-redux";
 import { addOrder, updateOrder } from "../redux/slices/ordersSlice";
-import SelectedProductsInput from "./SelectedProductsInput.jsx"; // Import the new component
+import SelectedProductsInput from "./SelectedProductsInput.jsx";
 
 const SaleOrderForm = ({ isOpen, onClose, existingOrder }) => {
   const {
@@ -38,12 +32,8 @@ const SaleOrderForm = ({ isOpen, onClose, existingOrder }) => {
   const dispatch = useDispatch();
   const customers = useSelector((state) => state.customers.customers);
   const products = useSelector((state) => state.products.products);
-  const [selectedCustomer, setSelectedCustomer] = useState(
-    existingOrder ? existingOrder.customer_id : ""
-  );
-  const [selectedProducts, setSelectedProducts] = useState(
-    existingOrder ? existingOrder.items.map((item) => item.sku_id) : []
-  );
+  const [selectedCustomer, setSelectedCustomer] = useState("");
+  const [selectedProducts, setSelectedProducts] = useState([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [totalItems, setTotalItems] = useState(0);
 
@@ -52,8 +42,14 @@ const SaleOrderForm = ({ isOpen, onClose, existingOrder }) => {
       setValue("invoice_number", existingOrder.invoice_no);
       setValue("invoice_date", existingOrder.invoice_date);
       setValue("paid", existingOrder.paid);
-      setValue("customer_id", existingOrder.customer_id);
-      setValue("products", existingOrder.items);
+      setSelectedCustomer(existingOrder.customer_id);
+      setSelectedProducts(existingOrder.items.map((item) => item.sku_id));
+    } else {
+      setValue("invoice_number", "");
+      setValue("invoice_date", "");
+      setValue("paid", false);
+      setSelectedCustomer("");
+      setSelectedProducts([]);
     }
   }, [existingOrder, setValue]);
 
@@ -63,9 +59,27 @@ const SaleOrderForm = ({ isOpen, onClose, existingOrder }) => {
     } else {
       dispatch(addOrder({ ...data, items: selectedProducts }));
     }
+    // updateLocalOrders();
     onClose();
   };
-  console.log(products);
+
+  const updateLocalOrders = () => {
+    const orders = JSON.parse(localStorage.getItem("orders")) || [];
+    const updatedOrders = existingOrder
+      ? orders.map((order) =>
+          order.invoice_no === existingOrder.invoice_no
+            ? { ...order, ...data }
+            : order
+        )
+      : [...orders, { ...data, items: selectedProducts }];
+    localStorage.setItem("orders", JSON.stringify(updatedOrders));
+  };
+
+  const updateTotals = (items, price) => {
+    setTotalItems(items);
+    setTotalPrice(price);
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="3xl">
       <ModalOverlay />
@@ -125,6 +139,7 @@ const SaleOrderForm = ({ isOpen, onClose, existingOrder }) => {
                 products={products}
                 selectedProducts={selectedProducts}
                 onChange={setSelectedProducts}
+                updateTotals={updateTotals}
               />
             </FormControl>
             <HStack spacing={4} justifyContent="flex-end">
