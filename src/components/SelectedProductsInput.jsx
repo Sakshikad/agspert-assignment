@@ -23,13 +23,29 @@ const SelectedProductsInput = ({
   selectedProducts,
   onChange,
   updateTotals,
+  onSaveData,
+  onSelectedItemsChange,
 }) => {
-  const { control, setValue, watch } = useForm();
+  const defaultValues = {
+    products: selectedProducts.map((productId) => ({
+      id: productId,
+      sku:
+        products
+          .find((p) => p.id === productId)
+          ?.sku.map((sku) => ({
+            id: sku.id,
+            totalItems: 0,
+            netSkuPrice: 0,
+          })) || [],
+    })),
+  };
+
+  const { control, setValue, watch, reset } = useForm({ defaultValues });
   const [productData, setProductData] = useState({});
 
   useEffect(() => {
     updateTotals(calculateTotalItems(), calculateTotalPrice());
-  }, [selectedProducts, productData, updateTotals]);
+  }, [selectedProducts, productData]);
 
   const calculateTotalItems = () => {
     let totalItems = 0;
@@ -63,35 +79,6 @@ const SelectedProductsInput = ({
     return totalPrice;
   };
 
-  // const handleRemoveProduct = (productId) => {
-  //   const updatedProducts = selectedProducts.filter((id) => id !== productId);
-  //   onChange(updatedProducts);
-  //   const newProductData = { ...productData };
-  //   delete newProductData[productId];
-  //   setProductData(newProductData);
-  // };
-
-  // const handleRemoveProduct = (productId) => {
-  //   const updatedProducts = selectedProducts.filter((id) => id !== productId);
-  //   onChange(updatedProducts);
-  //   const newProductData = { ...productData };
-  //   delete newProductData[productId];
-  //   setProductData(newProductData);
-
-  //   // Reset totalItems and netSkuPrice to 0 for each SKU of the removed product
-  //   const resetProductData = { ...productData };
-  //   selectedProducts.forEach((selectedProductId) => {
-  //     if (selectedProductId === productId) {
-  //       productData[selectedProductId].sku.forEach((skuId) => {
-  //         resetProductData[selectedProductId].sku[skuId] = {
-  //           totalItems: 0,
-  //           netSkuPrice: 0,
-  //         };
-  //       });
-  //     }
-  //   });
-  //   setProductData(resetProductData);
-  // };
   const handleRemoveProduct = (productId) => {
     const updatedProducts = selectedProducts.filter((id) => id !== productId);
     onChange(updatedProducts);
@@ -99,29 +86,20 @@ const SelectedProductsInput = ({
     delete newProductData[productId];
     setProductData(newProductData);
 
-    // Reset totalItems and netSkuPrice to 0 for each SKU of the removed product
-    const resetProductData = { ...productData };
-    selectedProducts.forEach((selectedProductId) => {
-      if (selectedProductId === productId) {
-        productData[selectedProductId].sku.forEach((skuId) => {
-          resetProductData[selectedProductId].sku[skuId] = {
-            totalItems: 0,
-            netSkuPrice: 0,
-          };
-        });
-      }
-    });
-    setProductData(resetProductData);
-
-    // Reset form values for totalItems and netSkuPrice
+    // Maintain values for remaining products
     reset({
       products: updatedProducts.map((productId) => ({
         id: productId,
-        sku: productData[productId].sku.map((skuId) => ({
-          id: skuId,
-          totalItems: 0,
-          netSkuPrice: 0,
-        })),
+        sku:
+          products
+            .find((p) => p.id === productId)
+            ?.sku.map((sku) => ({
+              id: sku.id,
+              totalItems:
+                productData[productId]?.sku?.[sku.id]?.totalItems || 0,
+              netSkuPrice:
+                productData[productId]?.sku?.[sku.id]?.netSkuPrice || 0,
+            })) || [],
       })),
     });
   };
@@ -134,9 +112,9 @@ const SelectedProductsInput = ({
     const sku = product.sku.find((s) => s.id === skuId);
     const netSkuPrice = totalItems * sku.selling_price;
 
-    setValue(`products[${productIndex}].sku[${skuId}].totalItems`, value);
+    setValue(`products[${productIndex}].sku[${sku.id}].totalItems`, value);
     setValue(
-      `products[${productIndex}].sku[${skuId}].netSkuPrice`,
+      `products[${productIndex}].sku[${sku.id}].netSkuPrice`,
       netSkuPrice
     );
 
@@ -168,6 +146,31 @@ const SelectedProductsInput = ({
     };
   });
 
+  const getSelectedItems = () => {
+    const items = [];
+    selectedProducts.forEach((productId) => {
+      const product = products.find((p) => p.id === productId);
+      if (product.sku) {
+        product.sku.forEach((sku) => {
+          const skuData = productData[productId]?.sku?.[sku.id];
+          if (skuData && skuData.totalItems > 0) {
+            items.push({
+              sku_id: sku.id,
+              price: sku.selling_price,
+              quantity: skuData.totalItems,
+            });
+          }
+        });
+      }
+    });
+    return items;
+  };
+  const handleSave = () => {
+    const selectedItems = getSelectedItems();
+    onSaveData(selectedItems);
+    props.onSelectedItemsChange(selectedItems);
+  };
+
   return (
     <VStack spacing={2} width="100%">
       <Select
@@ -178,7 +181,31 @@ const SelectedProductsInput = ({
           const updatedSelectedProducts = selectedOptions.map(
             (option) => option.value
           );
+          // handleSave();
           onChange(updatedSelectedProducts);
+
+          // Maintain existing productData for selected products
+          const newProductData = {};
+          updatedSelectedProducts.forEach((productId) => {
+            newProductData[productId] = productData[productId] || {};
+          });
+          setProductData(newProductData);
+
+          reset({
+            products: updatedSelectedProducts.map((productId) => ({
+              id: productId,
+              sku:
+                products
+                  .find((p) => p.id === productId)
+                  ?.sku.map((sku) => ({
+                    id: sku.id,
+                    totalItems:
+                      productData[productId]?.sku?.[sku.id]?.totalItems || 0,
+                    netSkuPrice:
+                      productData[productId]?.sku?.[sku.id]?.netSkuPrice || 0,
+                  })) || [],
+            })),
+          });
         }}
         isMulti
         closeMenuOnSelect={false}
@@ -227,16 +254,20 @@ const SelectedProductsInput = ({
                             name={`products[${productIndex}].sku[${sku.id}].totalItems`}
                             control={control}
                             rules={{ required: "Total items are required" }}
+                            defaultValue={0} // Ensure default value is 0
                             render={({ field }) => (
                               <Input
                                 placeholder="Total Items"
                                 type="number"
                                 {...field}
-                                value={watch(
-                                  `products[${productIndex}].sku[${sku.id}].totalItems`
-                                )}
+                                value={
+                                  watch(
+                                    `products[${productIndex}].sku[${sku.id}].totalItems`
+                                  ) ?? 0 // Ensure value is 0 if undefined
+                                }
                                 onChange={(e) => {
                                   field.onChange(e);
+
                                   handleTotalItemsChange(
                                     productIndex,
                                     sku.id,
@@ -280,12 +311,13 @@ const SelectedProductsInput = ({
                         <Controller
                           name={`products[${productIndex}].sku[${sku.id}].netSkuPrice`}
                           control={control}
+                          defaultValue={0} // Ensure default value is provided
                           render={({ field }) => (
                             <Text {...field} ml={2} color="gray.700">
                               Rs.{" "}
                               {watch(
                                 `products[${productIndex}].sku[${sku.id}].netSkuPrice`
-                              ) || 0}
+                              ) ?? 0}
                             </Text>
                           )}
                         />
@@ -308,6 +340,9 @@ const SelectedProductsInput = ({
           );
         })}
       </Accordion>
+      <button onClick={() => console.log(getSelectedItems())}>
+        Log Selected Items
+      </button>
     </VStack>
   );
 };
