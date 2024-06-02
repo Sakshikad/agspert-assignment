@@ -35,12 +35,14 @@ const SelectedProductsInput = ({
     let totalItems = 0;
     selectedProducts.forEach((productId) => {
       const product = products.find((p) => p.id === productId);
-      product.sku.forEach((sku) => {
-        const skuData = productData[productId]?.sku?.[sku.id];
-        if (skuData) {
-          totalItems += skuData.totalItems || 0;
-        }
-      });
+      if (product.sku) {
+        product.sku.forEach((sku) => {
+          const skuData = productData[productId]?.sku?.[sku.id];
+          if (skuData) {
+            totalItems += skuData.totalItems || 0;
+          }
+        });
+      }
     });
     return totalItems;
   };
@@ -49,12 +51,14 @@ const SelectedProductsInput = ({
     let totalPrice = 0;
     selectedProducts.forEach((productId) => {
       const product = products.find((p) => p.id === productId);
-      product.sku.forEach((sku) => {
-        const skuData = productData[productId]?.sku?.[sku.id];
-        if (skuData) {
-          totalPrice += skuData.netSkuPrice || 0;
-        }
-      });
+      if (product.sku) {
+        product.sku.forEach((sku) => {
+          const skuData = productData[productId]?.sku?.[sku.id];
+          if (skuData) {
+            totalPrice += skuData.netSkuPrice || 0;
+          }
+        });
+      }
     });
     return totalPrice;
   };
@@ -200,91 +204,95 @@ const SelectedProductsInput = ({
                 </AccordionButton>
               </h2>
               <AccordionPanel pb={4}>
-                {product.sku.map((sku, skuIndex) => (
-                  <Box key={sku.id} mt={4}>
-                    <Text fontWeight="bold" mb={2}>
-                      {skuIndex + 1}. SKU {sku.id} ({sku.amount} {sku.unit})
-                    </Text>
-                    <Box
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="space-between"
-                    >
-                      <FormControl width="45%">
-                        <FormLabel>Selling Price</FormLabel>
-                        <Input value={sku.selling_price} isReadOnly />
-                      </FormControl>
-                      <FormControl width="45%">
-                        <FormLabel>Total Items</FormLabel>
+                {!product.sku || product.sku.length === 0 ? (
+                  <Text>No SKU data available</Text>
+                ) : (
+                  product.sku.map((sku, skuIndex) => (
+                    <Box key={sku.id} mt={4}>
+                      <Text fontWeight="bold" mb={2}>
+                        {skuIndex + 1}. SKU {sku.id} ({sku.amount} {sku.unit})
+                      </Text>
+                      <Box
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="space-between"
+                      >
+                        <FormControl width="45%">
+                          <FormLabel>Selling Price</FormLabel>
+                          <Input value={sku.selling_price} isReadOnly />
+                        </FormControl>
+                        <FormControl width="45%">
+                          <FormLabel>Total Items</FormLabel>
+                          <Controller
+                            name={`products[${productIndex}].sku[${sku.id}].totalItems`}
+                            control={control}
+                            rules={{ required: "Total items are required" }}
+                            render={({ field }) => (
+                              <Input
+                                placeholder="Total Items"
+                                type="number"
+                                {...field}
+                                value={watch(
+                                  `products[${productIndex}].sku[${sku.id}].totalItems`
+                                )}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  handleTotalItemsChange(
+                                    productIndex,
+                                    sku.id,
+                                    e.target.value
+                                  );
+                                }}
+                              />
+                            )}
+                          />
+                          <Tag
+                            mt={-2}
+                            position="relative"
+                            left="165px"
+                            right="0px"
+                            fontSize="sm"
+                            color="green.700"
+                            size="sm"
+                            variant="solid"
+                            backgroundColor="green.300"
+                          >
+                            {sku.quantity_in_inventory} item(s) remaining
+                          </Tag>
+                        </FormControl>
+                      </Box>
+                      <Box
+                        mt={4}
+                        p={2}
+                        border="1px"
+                        borderColor="gray.200"
+                        borderRadius="md"
+                        bg="gray.50"
+                        width="200px"
+                        height="40px"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="flex-start"
+                      >
+                        <Text fontSize="sm" fontWeight="bold">
+                          Net SKU Price
+                        </Text>
                         <Controller
-                          name={`products[${productIndex}].sku[${sku.id}].totalItems`}
+                          name={`products[${productIndex}].sku[${sku.id}].netSkuPrice`}
                           control={control}
-                          rules={{ required: "Total items are required" }}
                           render={({ field }) => (
-                            <Input
-                              placeholder="Total Items"
-                              type="number"
-                              {...field}
-                              value={watch(
-                                `products[${productIndex}].sku[${sku.id}].totalItems`
-                              )}
-                              onChange={(e) => {
-                                field.onChange(e);
-                                handleTotalItemsChange(
-                                  productIndex,
-                                  sku.id,
-                                  e.target.value
-                                );
-                              }}
-                            />
+                            <Text {...field} ml={2} color="gray.700">
+                              Rs.{" "}
+                              {watch(
+                                `products[${productIndex}].sku[${sku.id}].netSkuPrice`
+                              ) || 0}
+                            </Text>
                           )}
                         />
-                        <Tag
-                          mt={-2}
-                          position="relative"
-                          left="165px"
-                          right="0px"
-                          fontSize="sm"
-                          color="green.700"
-                          size="sm"
-                          variant="solid"
-                          backgroundColor="green.300"
-                        >
-                          {sku.quantity_in_inventory} item(s) remaining
-                        </Tag>
-                      </FormControl>
+                      </Box>
                     </Box>
-                    <Box
-                      mt={4}
-                      p={2}
-                      border="1px"
-                      borderColor="gray.200"
-                      borderRadius="md"
-                      bg="gray.50"
-                      width="200px"
-                      height="40px"
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="flex-start"
-                    >
-                      <Text fontSize="sm" fontWeight="bold">
-                        Net SKU Price
-                      </Text>
-                      <Controller
-                        name={`products[${productIndex}].sku[${sku.id}].netSkuPrice`}
-                        control={control}
-                        render={({ field }) => (
-                          <Text {...field} ml={2} color="gray.700">
-                            Rs.{" "}
-                            {watch(
-                              `products[${productIndex}].sku[${sku.id}].netSkuPrice`
-                            ) || 0}
-                          </Text>
-                        )}
-                      />
-                    </Box>
-                  </Box>
-                ))}
+                  ))
+                )}
                 <Tag
                   mt={4}
                   size="sm"
